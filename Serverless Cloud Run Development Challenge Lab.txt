@@ -1,0 +1,90 @@
+...Serverless Cloud Run Development: Challenge Lab...
+
+gcloud auth list
+gcloud config list project
+gcloud config set project \
+$(gcloud projects list --format='value(PROJECT_ID)' \
+--filter='qwiklabs-gcp')
+
+gcloud config set run/region us-central1
+gcloud config set run/platform managed
+git clone https://github.com/rosera/pet-theory.git && cd pet-theory/lab07
+
+export PROJECT_ID=$(gcloud info --format='value(config.project)')
+
+...Task 1: Enable a Public Service
+
+cd
+cd ~/pet-theory/lab07/unit-api-billing
+gcloud builds submit --tag gcr.io/${PROJECT_ID}/billing-staging-api:0.1
+gcloud run deploy public-billing-service-713 --image gcr.io/${PROJECT_ID}/billing-staging-api:0.1
+gcloud run services list
+
+
+...Task 2: Deploy a Frontend Service
+
+cd
+cd ~/pet-theory/lab07/staging-frontend-billing
+gcloud builds submit --tag gcr.io/${PROJECT_ID}/frontend-staging:0.1
+gcloud run deploy frontend-staging-service-953 --image gcr.io/${PROJECT_ID}/frontend-staging:0.1
+gcloud run services list
+
+
+...Task 3: Deploy a Private Service
+
+cd
+cd ~/pet-theory/lab07/staging-api-billing
+gcloud builds submit --tag gcr.io/${PROJECT_ID}/billing-staging-api:0.2
+gcloud run deploy private-billing-service-263 --image gcr.io/${PROJECT_ID}/billing-staging-api:0.2
+gcloud run services list
+
+BILLING_URL=$(gcloud run services describe private-billing-service-263 \
+  --platform managed \
+  --region us-central1 \
+  --format "value(status.url)")
+  
+  curl -X get -H "Authorization: Bearer $(gcloud auth print-identity-token)" $BILLING_URL
+
+
+...Task 4: Create a Billing Service Account
+
+gcloud iam service-accounts billing-service-sa-632 --display-name "Billing Service Cloud Run"
+
+or
+
+ naviagtion menu > IAM & Admin > service account
+
+
+...Task 5: Deploy the Billing Service
+
+cd
+cd ~/pet-theory/lab07/prod-api-billing
+gcloud builds submit --tag gcr.io/${PROJECT_ID}/billing-prod-api:0.1
+gcloud run deploy billing-prod-service-377 --image gcr.io/${PROJECT_ID}/billing-prod-api:0.1
+gcloud run services list
+
+
+PROD_BILLING_URL=$(gcloud run services \
+describe $billing-service-sa-632 \
+--platform managed \
+--region us-central1 \
+--format "value(status.url)")
+
+
+curl -X get -H "Authorization: Bearer \
+  $(gcloud auth print-identity-token)" \
+  $PROD_BILLING_URL
+
+
+...Task 6: Frontend Service Account
+
+gcloud iam service-accounts create frontend-service-sa-706 --display-name "Billing Service Cloud Run Invoker"
+
+  
+...Task 7: Redeploy the Frontend Service
+
+cd
+cd ~/pet-theory/lab07/prod-frontend-billing
+gcloud builds submit --tag gcr.io/${PROJECT_ID}/frontend-prod:0.1
+gcloud run deploy frontend-prod-service-216 --image gcr.io/${PROJECT_ID}/frontend-prod:0.1
+gcloud run services list
